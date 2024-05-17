@@ -14,5 +14,6 @@ libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % 
 libraryDependencies += sparkcore
 libraryDependencies += sparksql
 libraryDependencies +=  hadoopclient
+//libraryDependencies += "org.vegas-viz" %% "vegas" % "0.3.11"
 
 fork := true

@@ -11,3 +11,7 @@ devenv.local.nix
 .pre-commit-config.yaml
 
 .metals
+.bsp/
+.idea/
+
+data
