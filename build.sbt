@@ -13,7 +13,18 @@ lazy val hadoopclient = "org.apache.hadoop" % "hadoop-client" % "3.3.2"
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
 libraryDependencies += sparkcore
 libraryDependencies += sparksql
-libraryDependencies +=  hadoopclient
-//libraryDependencies += "org.vegas-viz" %% "vegas" % "0.3.11"
+libraryDependencies += hadoopclient
+
+libraryDependencies += "org.apache.spark" %% "spark-mllib" % "3.1.2"
+libraryDependencies += "com.johnsnowlabs.nlp" %% "spark-nlp" % "4.1.0"
+
+libraryDependencies += "org.scalanlp" %% "breeze" % "2.1.0"
+libraryDependencies += "org.scalanlp" %% "breeze-viz" % "2.1.0"
+
+libraryDependencies += "org.plotly-scala" %% "plotly-render" % "0.8.2"
+libraryDependencies += "org.plotly-scala" %% "plotly-almond" % "0.8.2"
 
 fork := true
+
+// Ensure you have the appropriate resolver
+resolvers += "John Snow Labs" at "https://johnsnowlabs.jfrog.io/artifactory/spark-nlp/"

@@ -1,10 +1,6 @@
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
-import org.apache.spark.sql.functions._
-import org.apache.spark.sql.types.{StringType, StructType}
-
-import vegas._
-import vegas.render.WindowRenderer._
+import org.apache.spark.sql.SparkSession
+import modules.{Analysis, Preprocessing, Visualization}
+import org.apache.spark.sql.functions.{col, size, split}
 
 object SimpleApp extends App {
 
@@ -18,59 +14,45 @@ object SimpleApp extends App {
     val filePath1 = "./data/bookcorpus/books_large_p1.txt"
     val filePath2 = "./data/bookcorpus/books_large_p2.txt"
 
-
+    /* ##########################################################
+    ######################## Preprocessing ######################
+    ############################################################# */
     // Lecture des données des deux fichiers
-    val dataRDD1 = spark.sparkContext.textFile(filePath1)
-    val dataRDD2 = spark.sparkContext.textFile(filePath2)
+    val dataRDD1 = Preprocessing.readData(spark, filePath1)
+    val dataRDD2 = Preprocessing.readData(spark, filePath2)
 
-    // Combinaison des DataFrames
+    // Combinaison des RDD
     val linesRDD = dataRDD1.union(dataRDD2)
 
-    // Fonction pour déterminer si une ligne est le début d'un nouveau livre
-    def isNewBook(line: String): Boolean = {
-        line.contains("isbn")
-        // line.startsWith("isbn") || line.startsWith("chapter")
-    }
+    // Découpage en livres
+    var booksRDD = Preprocessing.groupLinesToBooks(linesRDD)
 
-    // Groupement des lignes pour former des livres complets
-    def groupLinesToBooks(linesDF: RDD[String]): DataFrame = {
-        val booksRDD = linesRDD.mapPartitions { iter =>
-            var currentBook = List[String]()
-            iter.flatMap { line =>
-                if (isNewBook(line)) {
-                    val book = currentBook.reverse.mkString("\n")
-                    currentBook = List(line)
-                    if (book.nonEmpty) Some(book) else None
-                } else {
-                    currentBook = line :: currentBook
-                    None
-                }
-            } ++ (if (currentBook.nonEmpty) Some(currentBook.reverse.mkString("\n")) else None)
-        }
-        val schema = new StructType().add("livres", StringType)
-        spark.createDataFrame(booksRDD.map(Row(_)), schema)
-    }
+    // RDD to Dataframe
+    var booksDF = Preprocessing.convertToDF(spark, booksRDD)
 
-    // Fonction pour compter le nombre de mots dans une chaîne
-    def countWords(text: String): Int = text.split("\\s+").length
+    // Échantillonnage pour optimiser le developpement
+    val sampleFraction = 0.01 // Utiliser une fraction de 1% des données
+    booksDF = booksDF.sample(withReplacement = false, fraction = sampleFraction, seed = 42)
 
-    // Ajout de la colonne "nombre de mots" au DataFrame
-    def addWordCountColumn(booksDF: DataFrame): DataFrame = {
-        val countWordsUDF = udf((text: String) => countWords(text))
-        booksDF.withColumn("nombre de mots", countWordsUDF(col("livres")))
-    }
+    // Nettoyage du Dataframe
+    booksDF = Preprocessing.cleanBooks(booksDF)
 
-    // Traitement des données
-    var booksDF = groupLinesToBooks(linesRDD)
-    booksDF = addWordCountColumn(booksDF)
+    /* ##########################################################
+    ######################## Analysis ######################
+    ############################################################# */
+    Analysis.printStatistics(booksDF)
 
-    // Affichage du DataFrame résultant
-    booksDF.show()
 
-    // ###########################################VISUALISATION################################################
-    // Histogramme pour la distribution du nombre de mots par livre
-    // val wordCountHist =
+    /* ##########################################################
+    ######################## Visualization ######################
+    ############################################################# */
+    // Calcul du nombre de mots par livre
+    val wordsPerBookDF = booksDF.withColumn("num_words", size(split(col("books"), "\\s+")))
 
-    // print("Num of lines : ", booksDF.count())
+    Visualization.plotHistogram(wordsPerBookDF, spark)
+    Visualization.plotTop10Books(wordsPerBookDF, spark)
+
+
+
     spark.stop()
 }
